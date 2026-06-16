@@ -43,6 +43,8 @@ app.register_blueprint(recommendations_bp, url_prefix="/api/recommendations")
 app.register_blueprint(users_bp, url_prefix="/api/users")
 app.register_blueprint(admin_bp, url_prefix="/api/admin")
 
+init_pool()
+
 # Uploaded files
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
