@@ -1,4 +1,4 @@
-import os
+can import os
 import uuid
 from flask import Blueprint, request, jsonify, g, current_app
 from werkzeug.utils import secure_filename
@@ -96,7 +96,8 @@ def upload_listing_image():
     if ext not in {'.jpg', '.jpeg', '.png', '.webp', '.gif'}:
         return jsonify(error="File must be jpg, png, webp, or gif"), 400
     filename = f"listing_{uuid.uuid4().hex}{ext}"
-    upload_dir = os.path.join(current_app.root_path, current_app.config.get('UPLOAD_FOLDER', 'uploads'))
+    upload_dir = os.path.join(
+        current_app.root_path, current_app.config.get('UPLOAD_FOLDER', 'uploads'))
     os.makedirs(upload_dir, exist_ok=True)
     file.save(os.path.join(upload_dir, filename))
     base_url = request.host_url.rstrip('/')
@@ -112,12 +113,13 @@ def get_listing(listing_id):
                       u.id as seller_id, u.full_name as seller_name, u.avatar_url as seller_avatar,
                       u.email as seller_email,
                       (SELECT COUNT(*) FROM user_behavior WHERE listing_id = l.id AND behavior_type = 'like') as like_count,
-                      (SELECT behavior_type FROM user_behavior WHERE listing_id = l.id AND user_id = %s AND behavior_type = 'like' LIMIT 1) as user_liked
+                      (SELECT behavior_type FROM user_behavior WHERE listing_id = l.id AND user_id = %s AND behavior_type = 'like' LIMIT 1) as user_liked,
+                      EXISTS(SELECT 1 FROM watchlist WHERE user_id = %s AND listing_id = l.id) as user_watchlisted
                FROM listings l
                LEFT JOIN categories c ON l.category_id = c.id
                JOIN users u ON l.seller_id = u.id
                WHERE l.id = %s AND l.school_id = %s""",
-            [g.user["id"], listing_id, g.user["school_id"]],
+            [g.user["id"], g.user["id"], listing_id, g.user["school_id"]],
         )
 
         if not row:
@@ -133,7 +135,8 @@ def get_listing(listing_id):
                    VALUES (%s, %s, %s, 'view') ON CONFLICT DO NOTHING""",
                 [g.user["id"], listing_id, listing["category_id"]],
             )
-            db.execute("UPDATE listings SET view_count = view_count + 1 WHERE id = %s", [listing_id])
+            db.execute(
+                "UPDATE listings SET view_count = view_count + 1 WHERE id = %s", [listing_id])
 
     return jsonify(listing=listing)
 
@@ -171,7 +174,8 @@ def create_listing():
 def update_listing(listing_id):
     data = request.get_json() or {}
     with DB() as db:
-        existing = db.fetchone("SELECT * FROM listings WHERE id = %s", [listing_id])
+        existing = db.fetchone(
+            "SELECT * FROM listings WHERE id = %s", [listing_id])
         if not existing:
             return jsonify(error="Listing not found"), 404
         if existing["seller_id"] != g.user["id"] and g.user["role"] != "admin":
@@ -202,12 +206,14 @@ def update_listing(listing_id):
 @require_auth
 def delete_listing(listing_id):
     with DB() as db:
-        existing = db.fetchone("SELECT seller_id FROM listings WHERE id = %s", [listing_id])
+        existing = db.fetchone(
+            "SELECT seller_id FROM listings WHERE id = %s", [listing_id])
         if not existing:
             return jsonify(error="Listing not found"), 404
         if existing["seller_id"] != g.user["id"] and g.user["role"] != "admin":
             return jsonify(error="Not authorized"), 403
-        db.execute("UPDATE listings SET status = 'removed' WHERE id = %s", [listing_id])
+        db.execute(
+            "UPDATE listings SET status = 'removed' WHERE id = %s", [listing_id])
     return jsonify(message="Listing removed")
 
 
@@ -215,12 +221,14 @@ def delete_listing(listing_id):
 @require_auth
 def mark_sold(listing_id):
     with DB() as db:
-        row = db.fetchone("SELECT seller_id FROM listings WHERE id = %s", [listing_id])
+        row = db.fetchone(
+            "SELECT seller_id FROM listings WHERE id = %s", [listing_id])
         if not row:
             return jsonify(error="Listing not found"), 404
         if row["seller_id"] != g.user["id"]:
             return jsonify(error="Not authorized"), 403
-        db.execute("UPDATE listings SET status = 'sold' WHERE id = %s", [listing_id])
+        db.execute(
+            "UPDATE listings SET status = 'sold' WHERE id = %s", [listing_id])
     return jsonify(message="Listing marked as sold")
 
 
@@ -228,7 +236,8 @@ def mark_sold(listing_id):
 @require_auth
 def toggle_like(listing_id):
     with DB() as db:
-        listing = db.fetchone("SELECT id, category_id FROM listings WHERE id = %s AND status = 'active'", [listing_id])
+        listing = db.fetchone(
+            "SELECT id, category_id FROM listings WHERE id = %s AND status = 'active'", [listing_id])
         if not listing:
             return jsonify(error="Listing not found"), 404
 
@@ -266,3 +275,54 @@ def report_listing(listing_id):
             [listing_id, g.user["id"], reason],
         )
     return jsonify(message="Report submitted. Our team will review it."), 201
+
+
+# ── Watchlist ──────────────────────────────────────────────────
+
+@listings_bp.route("/watchlist", methods=["GET"])
+@require_auth
+def get_watchlist():
+    with DB() as db:
+        rows = db.fetchall(
+            """SELECT l.id, l.title, l.price, l.condition, l.images, l.status, l.created_at,
+                      c.name as category_name, c.slug as category_slug, c.icon as category_icon,
+                      u.full_name as seller_name, u.avatar_url as seller_avatar,
+                      w.created_at as watchlisted_at
+               FROM watchlist w
+               JOIN listings l ON w.listing_id = l.id
+               LEFT JOIN categories c ON l.category_id = c.id
+               JOIN users u ON l.seller_id = u.id
+               WHERE w.user_id = %s AND l.status = 'active'
+               ORDER BY w.created_at DESC""",
+            [g.user["id"]],
+        )
+    return jsonify(listings=[dict(r) for r in rows])
+
+
+@listings_bp.route("/<int:listing_id>/watchlist", methods=["POST"])
+@require_auth
+def toggle_watchlist(listing_id):
+    with DB() as db:
+        listing = db.fetchone(
+            "SELECT id FROM listings WHERE id = %s AND status = 'active'",
+            [listing_id],
+        )
+        if not listing:
+            return jsonify(error="Listing not found"), 404
+
+        existing = db.fetchone(
+            "SELECT id FROM watchlist WHERE user_id = %s AND listing_id = %s",
+            [g.user["id"], listing_id],
+        )
+        if existing:
+            db.execute(
+                "DELETE FROM watchlist WHERE user_id = %s AND listing_id = %s",
+                [g.user["id"], listing_id],
+            )
+            return jsonify(watchlisted=False)
+        else:
+            db.execute(
+                "INSERT INTO watchlist (user_id, listing_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+                [g.user["id"], listing_id],
+            )
+            return jsonify(watchlisted=True)

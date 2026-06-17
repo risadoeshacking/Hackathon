@@ -3,7 +3,7 @@ import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Home, Plus, User, LogOut, ShieldCheck, Package,
-  ChevronDown, Store, Menu, X,
+  ChevronDown, Store, Menu, X, Bookmark,
 } from 'lucide-react';
 
 export default function Navbar() {
@@ -14,7 +14,12 @@ export default function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   const handleLogout = () => { logout(); navigate('/login'); };
-  const isActive = (path) => location.pathname === path;
+  const isActive = (path) => {
+    const basePath = path.split('?')[0];
+    return location.pathname === basePath && (
+      path.includes('?') ? location.search.includes(path.split('?')[1]) : true
+    );
+  };
 
   const primaryColor = user?.school_primary_color || '#2563EB';
   const isAdmin = user?.role === 'admin';
@@ -23,6 +28,7 @@ export default function Navbar() {
     ? [{ to: '/', icon: Home, label: 'Browse' }]
     : [
         { to: '/', icon: Home, label: 'Browse' },
+        { to: '/profile?tab=watchlist', icon: Bookmark, label: 'Watchlist' },
         { to: '/orders', icon: Package, label: 'Orders' },
       ];
 

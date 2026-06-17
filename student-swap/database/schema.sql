@@ -104,6 +104,15 @@ CREATE TABLE IF NOT EXISTS moderation_reports (
   created_at TIMESTAMP DEFAULT NOW()
 );
 
+-- Watchlist table
+CREATE TABLE IF NOT EXISTS watchlist (
+  id SERIAL PRIMARY KEY,
+  user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+  listing_id INTEGER REFERENCES listings(id) ON DELETE CASCADE,
+  created_at TIMESTAMP DEFAULT NOW(),
+  UNIQUE(user_id, listing_id)
+);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_school ON users(school_id);
@@ -118,6 +127,8 @@ CREATE INDEX IF NOT EXISTS idx_user_behavior_listing ON user_behavior(listing_id
 CREATE INDEX IF NOT EXISTS idx_recommendations_user ON recommendations(user_id);
 CREATE INDEX IF NOT EXISTS idx_moderation_reports_listing ON moderation_reports(listing_id);
 CREATE INDEX IF NOT EXISTS idx_moderation_reports_status ON moderation_reports(status);
+CREATE INDEX IF NOT EXISTS idx_watchlist_user ON watchlist(user_id);
+CREATE INDEX IF NOT EXISTS idx_watchlist_listing ON watchlist(listing_id);
 
 -- Updated_at trigger function
 CREATE OR REPLACE FUNCTION update_updated_at_column()

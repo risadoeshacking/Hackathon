@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getListing, toggleLike, reportListing, markSold, deleteListing } from '../api/listings';
+import { getListing, toggleLike, toggleWatchlist, reportListing, markSold, deleteListing } from '../api/listings';
 import { createOrder } from '../api/orders';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Heart, Eye, ShoppingBag, Flag, Check, Package,
   ArrowLeft, ChevronRight, Edit2, Trash2, CheckSquare,
+  Bookmark, BookmarkCheck,
 } from 'lucide-react';
 
 const CONDITION_LABELS = { new: 'New', like_new: 'Like New', good: 'Good', fair: 'Fair', poor: 'Poor' };
@@ -32,6 +33,7 @@ export default function ListingDetailPage() {
   const [reportReason, setReportReason] = useState('');
   const [showReport, setShowReport] = useState(false);
   const [reportSent, setReportSent] = useState(false);
+  const [watchlisted, setWatchlisted] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -40,6 +42,7 @@ export default function ListingDetailPage() {
         setListing(data.listing);
         setLiked(!!data.listing.user_liked);
         setLikeCount(parseInt(data.listing.like_count) || 0);
+        setWatchlisted(!!data.listing.user_watchlisted);
       })
       .catch(() => navigate('/'))
       .finally(() => setLoading(false));
@@ -50,6 +53,13 @@ export default function ListingDetailPage() {
       const { data } = await toggleLike(id);
       setLiked(data.liked);
       setLikeCount((c) => (data.liked ? c + 1 : c - 1));
+    } catch {}
+  };
+
+  const handleWatchlist = async () => {
+    try {
+      const { data } = await toggleWatchlist(id);
+      setWatchlisted(data.watchlisted);
     } catch {}
   };
 
@@ -122,7 +132,7 @@ export default function ListingDetailPage() {
           Back to listings
         </button>
 
-        <div className="grid md:grid-cols-2 gap-8">
+            <div className="grid md:grid-cols-2 gap-4 sm:gap-8">
           {/* Images */}
           <div className="space-y-3">
             <div className="aspect-square rounded-2xl overflow-hidden bg-white border border-slate-200 shadow-sm">
@@ -160,21 +170,34 @@ export default function ListingDetailPage() {
 
           {/* Details */}
           <div className="space-y-5">
-            {/* Title + like */}
+            {/* Title + actions */}
             <div>
               <div className="flex items-start justify-between gap-3 mb-2">
-                <h1 className="text-2xl font-bold text-slate-900 leading-tight">{listing.title}</h1>
-                <button
-                  onClick={handleLike}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${
-                    liked
-                      ? 'bg-red-50 border-red-200 text-red-500'
-                      : 'border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400'
-                  }`}
-                >
-                  <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
-                  <span className="text-sm font-medium">{likeCount}</span>
-                </button>
+                <h1 className="text-xl sm:text-2xl font-bold text-slate-900 leading-tight">{listing.title}</h1>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={handleWatchlist}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border transition-all ${
+                      watchlisted
+                        ? 'bg-amber-50 border-amber-200 text-amber-600'
+                        : 'border-slate-200 text-slate-400 hover:border-amber-200 hover:text-amber-400'
+                    }`}
+                    title={watchlisted ? 'Remove from watchlist' : 'Add to watchlist'}
+                  >
+                    {watchlisted ? <BookmarkCheck size={15} /> : <Bookmark size={15} />}
+                  </button>
+                  <button
+                    onClick={handleLike}
+                    className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-full border transition-all ${
+                      liked
+                        ? 'bg-red-50 border-red-200 text-red-500'
+                        : 'border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400'
+                    }`}
+                  >
+                    <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
+                    <span className="text-sm font-medium">{likeCount}</span>
+                  </button>
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {listing.category_name && (
@@ -200,7 +223,7 @@ export default function ListingDetailPage() {
             </div>
 
             {/* Price */}
-            <div className="text-4xl font-bold text-blue-600">
+            <div className="text-3xl sm:text-4xl font-bold text-blue-600">
               ${parseFloat(listing.price).toFixed(2)}
             </div>
 

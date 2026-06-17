@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import * as usersApi from '../api/users';
 import * as ordersApi from '../api/orders';
+import { getWatchlist } from '../api/listings';
 import ListingCard from '../components/ListingCard';
 import {
   CheckCircle, Clock, CheckCheck, Heart, Package,
-  ShoppingBag, Building2, Check, Plus,
+  ShoppingBag, Building2, Check, Plus, Bookmark,
 } from 'lucide-react';
 
 const TABS = [
@@ -14,13 +15,15 @@ const TABS = [
   { id: 'pending',   label: 'Pending',   Icon: Clock },
   { id: 'sold',      label: 'Sold',      Icon: CheckCheck },
   { id: 'liked',     label: 'Liked',     Icon: Heart },
+  { id: 'watchlist', label: 'Watchlist',  Icon: Bookmark },
   { id: 'purchases', label: 'Purchases', Icon: Package },
 ];
 
 export default function ProfilePage() {
   const { user, refreshUser } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [profile, setProfile] = useState(null);
-  const [tab, setTab] = useState('active');
+  const [tab, setTab] = useState(() => searchParams.get('tab') || 'active');
   const [listings, setListings] = useState([]);
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -39,12 +42,24 @@ export default function ProfilePage() {
     setLoading(true);
     if (tab === 'liked') {
       usersApi.getLikedListings().then(({ data }) => setListings(data.listings)).finally(() => setLoading(false));
+    } else if (tab === 'watchlist') {
+      getWatchlist().then(({ data }) => setListings(data.listings)).finally(() => setLoading(false));
     } else if (tab === 'purchases') {
       ordersApi.getMyOrders('buyer').then(({ data }) => setOrders(data.orders)).finally(() => setLoading(false));
     } else {
       usersApi.getMyListings(tab).then(({ data }) => setListings(data.listings)).finally(() => setLoading(false));
     }
   }, [tab]);
+
+  const handleTabChange = (newTab) => {
+    setTab(newTab);
+    if (newTab === 'active') {
+      searchParams.delete('tab');
+    } else {
+      searchParams.set('tab', newTab);
+    }
+    setSearchParams(searchParams, { replace: true });
+  };
 
   const handleSaveProfile = async () => {
     try {
@@ -157,7 +172,7 @@ export default function ProfilePage() {
           {TABS.map(({ id: tid, label, Icon }) => (
             <button
               key={tid}
-              onClick={() => setTab(tid)}
+              onClick={() => handleTabChange(tid)}
               className={`flex-shrink-0 flex items-center gap-1.5 px-3.5 py-2 rounded-full text-sm font-medium transition-all ${
                 tab === tid
                   ? 'bg-blue-600 text-white shadow-sm'

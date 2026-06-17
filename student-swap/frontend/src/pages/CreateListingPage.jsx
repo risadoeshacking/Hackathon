@@ -179,7 +179,7 @@ export default function CreateListingPage() {
             )}
 
             {images.length > 0 && (
-              <div className={`grid grid-cols-3 gap-3 ${images.length < 5 ? 'mt-3' : ''}`}>
+              <div className={`grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-3 ${images.length < 5 ? 'mt-3' : ''}`}>
                 {images.map((img, i) => (
                   <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-slate-100 group">
                     <img src={img.url} alt="" className="w-full h-full object-cover" />
