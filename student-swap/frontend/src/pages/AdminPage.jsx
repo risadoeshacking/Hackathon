@@ -7,6 +7,7 @@ import {
   ChevronRight, AlertCircle, Smile, ExternalLink,
 } from 'lucide-react';
 import * as adminApi from '../api/admin';
+import { useAuth } from '../contexts/AuthContext';
 
 const TABS = [
   { id: 'listings',   label: 'Listings',    icon: ClipboardList },
@@ -19,6 +20,7 @@ const TABS = [
 
 // ── School Settings ────────────────────────────────────────────────────────────
 function SchoolSettingsTab({ notify }) {
+  const { refreshUser } = useAuth();
   const [school, setSchool] = useState(null);
   const [form, setForm] = useState({});
   const [saving, setSaving] = useState(false);
@@ -62,6 +64,7 @@ function SchoolSettingsTab({ notify }) {
     try {
       const { data } = await adminApi.updateSchool(form);
       setSchool(data.school);
+      await refreshUser();
       notify('Settings saved');
     } catch (err) {
       notify(err.response?.data?.error || 'Save failed');
