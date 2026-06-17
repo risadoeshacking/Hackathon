@@ -78,19 +78,18 @@ function SchoolSettingsTab({ notify }) {
         <div className="flex items-center gap-6">
           <div className="w-20 h-20 rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 flex items-center justify-center overflow-hidden flex-shrink-0">
             {logoPreview
-              ? <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-1" />
+              ? <img src={logoPreview} alt="Logo" className="w-full h-full object-contain p-1" onError={() => setLogoPreview(null)} />
               : <School size={28} className="text-slate-300" />}
           </div>
-          <div className="flex flex-col gap-2">
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleLogoSelect} />
-            <button onClick={() => fileRef.current.click()} className="btn-secondary text-sm">
-              <Upload size={14} /> Choose image
-            </button>
-            {logoFile && (
-              <button onClick={handleLogoUpload} disabled={uploading} className="btn-primary text-sm">
-                {uploading ? 'Uploading…' : 'Upload logo'}
-              </button>
-            )}
+          <div className="flex flex-col gap-2 flex-1">
+            <label className="label">Logo URL</label>
+            <input
+              className="input text-sm"
+              placeholder="https://example.com/logo.png"
+              value={form.logo_url || ''}
+              onChange={(e) => { setForm((p) => ({ ...p, logo_url: e.target.value })); setLogoPreview(e.target.value || null); }}
+            />
+            <p className="text-xs text-slate-400">Paste a direct image URL. Upload to <a href="https://imgur.com/upload" target="_blank" rel="noreferrer" className="text-blue-500 underline">Imgur</a> for a free host.</p>
           </div>
         </div>
       </section>

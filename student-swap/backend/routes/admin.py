@@ -223,7 +223,7 @@ def get_school():
 @require_admin
 def update_school():
     data = request.get_json() or {}
-    allowed = ["name", "email_domain", "primary_color", "secondary_color",
+    allowed = ["name", "email_domain", "logo_url", "primary_color", "secondary_color",
                "tagline", "website", "address", "phone", "announcement", "announcement_color"]
 
     updates = {k: data[k] for k in allowed if k in data}

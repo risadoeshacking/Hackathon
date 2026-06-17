@@ -1,7 +1,7 @@
 import axios from 'axios';
 import client from './client';
 
-const BASE = import.meta.env.VITE_API_URL || 'http://localhost:3001';
+const BASE = import.meta.env.VITE_API_URL || '';
 
 export const getStats = () => client.get('/admin/stats');
 export const getPendingListings = (params) => client.get('/admin/listings', { params });
