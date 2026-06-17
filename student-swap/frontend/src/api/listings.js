@@ -9,6 +9,7 @@ export const markSold = (id) => client.patch(`/listings/${id}/sold`);
 export const toggleLike = (id) => client.post(`/listings/${id}/like`);
 export const reportListing = (id, reason) => client.post(`/listings/${id}/report`, { reason });
 export const getCategories = () => client.get('/listings/categories');
+export const aiCompare = (id) => client.get(`/ai/listings/${id}/compare`);
 export const uploadImage = (file) => {
   const form = new FormData();
   form.append('image', file);

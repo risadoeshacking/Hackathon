@@ -77,6 +77,44 @@ def get_liked():
     return jsonify(listings=[dict(r) for r in rows])
 
 
+@users_bp.route("/watchlist/<int:listing_id>", methods=["POST"])
+@require_auth
+def toggle_watchlist(listing_id):
+    with DB() as db:
+        existing = db.fetchone(
+            "SELECT id FROM watchlist WHERE user_id = %s AND listing_id = %s",
+            [g.user["id"], listing_id],
+        )
+        if existing:
+            db.execute("DELETE FROM watchlist WHERE user_id = %s AND listing_id = %s",
+                       [g.user["id"], listing_id])
+            return jsonify(watching=False)
+        db.execute(
+            "INSERT INTO watchlist (user_id, listing_id) VALUES (%s, %s) ON CONFLICT DO NOTHING",
+            [g.user["id"], listing_id],
+        )
+    return jsonify(watching=True)
+
+
+@users_bp.route("/watchlist", methods=["GET"])
+@require_auth
+def get_watchlist():
+    with DB() as db:
+        rows = db.fetchall(
+            """SELECT l.id, l.title, l.price, l.condition, l.images, l.status, l.created_at,
+                      c.name as category_name, c.slug as category_slug, c.icon as category_icon,
+                      u.full_name as seller_name, w.created_at as watched_at
+               FROM watchlist w
+               JOIN listings l ON w.listing_id = l.id
+               LEFT JOIN categories c ON l.category_id = c.id
+               JOIN users u ON l.seller_id = u.id
+               WHERE w.user_id = %s
+               ORDER BY w.created_at DESC""",
+            [g.user["id"]],
+        )
+    return jsonify(listings=[dict(r) for r in rows])
+
+
 @users_bp.route("/<int:user_id>", methods=["GET"])
 @require_auth
 def get_public_profile(user_id):

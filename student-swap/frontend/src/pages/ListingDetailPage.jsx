@@ -1,11 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
-import { getListing, toggleLike, reportListing, markSold, deleteListing } from '../api/listings';
+import { getListing, toggleLike, reportListing, markSold, deleteListing, aiCompare } from '../api/listings';
+import { toggleWatchlist } from '../api/users';
 import { createOrder } from '../api/orders';
 import { useAuth } from '../contexts/AuthContext';
 import {
   Heart, Eye, ShoppingBag, Flag, Check, Package,
   ArrowLeft, ChevronRight, Edit2, Trash2, CheckSquare,
+  Sparkles, TrendingDown, Bookmark, BookmarkCheck,
 } from 'lucide-react';
 
 const CONDITION_LABELS = { new: 'New', like_new: 'Like New', good: 'Good', fair: 'Fair', poor: 'Poor' };
@@ -33,6 +35,11 @@ export default function ListingDetailPage() {
   const [showReport, setShowReport] = useState(false);
   const [reportSent, setReportSent] = useState(false);
   const [error, setError] = useState('');
+  const [aiAnalysis, setAiAnalysis] = useState(null);
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [watching, setWatching] = useState(false);
+  const [watchLoading, setWatchLoading] = useState(false);
 
   useEffect(() => {
     getListing(id)
@@ -40,6 +47,7 @@ export default function ListingDetailPage() {
         setListing(data.listing);
         setLiked(!!data.listing.user_liked);
         setLikeCount(parseInt(data.listing.like_count) || 0);
+        setWatching(!!data.listing.user_watched);
       })
       .catch(() => navigate('/'))
       .finally(() => setLoading(false));
@@ -88,6 +96,38 @@ export default function ListingDetailPage() {
     if (!confirm('Remove this listing?')) return;
     await deleteListing(id);
     navigate('/profile');
+  };
+
+  const handleWatchlist = async () => {
+    if (watchLoading) return;
+    setWatchLoading(true);
+    try {
+      const { data } = await toggleWatchlist(id);
+      setWatching(data.watching);
+    } catch {}
+    finally { setWatchLoading(false); }
+  };
+
+  const handleAiCompare = async () => {
+    if (aiLoading) return;
+    setAiLoading(true);
+    setAiError('');
+    setAiAnalysis(null);
+    try {
+      const { data } = await aiCompare(id);
+      setAiAnalysis(data.analysis);
+    } catch (err) {
+      setAiError(err.response?.data?.error || 'AI analysis failed. Please try again.');
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const verdictStyle = (v = '') => {
+    if (v.includes('Exceptional') || v.includes('Great')) return 'bg-emerald-50 text-emerald-700 border-emerald-200';
+    if (v.includes('Good')) return 'bg-blue-50 text-blue-700 border-blue-200';
+    if (v.includes('Fair')) return 'bg-amber-50 text-amber-700 border-amber-200';
+    return 'bg-red-50 text-red-700 border-red-200';
   };
 
   if (loading) {
@@ -164,17 +204,38 @@ export default function ListingDetailPage() {
             <div>
               <div className="flex items-start justify-between gap-3 mb-2">
                 <h1 className="text-2xl font-bold text-slate-900 leading-tight">{listing.title}</h1>
-                <button
-                  onClick={handleLike}
-                  className={`flex-shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${
-                    liked
-                      ? 'bg-red-50 border-red-200 text-red-500'
-                      : 'border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400'
-                  }`}
-                >
-                  <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
-                  <span className="text-sm font-medium">{likeCount}</span>
-                </button>
+                <div className="flex items-center gap-1.5 flex-shrink-0">
+                  <button
+                    onClick={handleLike}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border transition-all ${
+                      liked
+                        ? 'bg-red-50 border-red-200 text-red-500'
+                        : 'border-slate-200 text-slate-400 hover:border-red-200 hover:text-red-400'
+                    }`}
+                  >
+                    <Heart size={15} fill={liked ? 'currentColor' : 'none'} />
+                    <span className="text-sm font-medium">{likeCount}</span>
+                  </button>
+                  {!isSeller && user && (
+                    <button
+                      onClick={handleWatchlist}
+                      disabled={watchLoading}
+                      title={watching ? 'Remove from watchlist' : 'Save to watchlist'}
+                      className={`flex items-center justify-center w-8 h-8 rounded-full border transition-all ${
+                        watching
+                          ? 'bg-blue-50 border-blue-200 text-blue-600'
+                          : 'border-slate-200 text-slate-400 hover:border-blue-200 hover:text-blue-500'
+                      }`}
+                    >
+                      {watchLoading
+                        ? <span className="w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        : watching
+                          ? <BookmarkCheck size={15} />
+                          : <Bookmark size={15} />
+                      }
+                    </button>
+                  )}
+                </div>
               </div>
               <div className="flex items-center gap-2 flex-wrap">
                 {listing.category_name && (
@@ -203,6 +264,79 @@ export default function ListingDetailPage() {
             <div className="text-4xl font-bold text-blue-600">
               ${parseFloat(listing.price).toFixed(2)}
             </div>
+
+            {/* AI Market Analysis */}
+            {!isSeller && isActive && user && (
+              <div>
+                {!aiAnalysis && !aiLoading && !aiError && (
+                  <button
+                    onClick={handleAiCompare}
+                    className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl border-2 border-dashed border-violet-300 text-violet-600 hover:bg-violet-50 hover:border-violet-400 transition-all text-sm font-medium"
+                  >
+                    <Sparkles size={15} />
+                    Analyse Market Price with AI
+                  </button>
+                )}
+                {aiLoading && (
+                  <div className="bg-violet-50 border border-violet-200 rounded-xl p-4 flex items-center gap-3">
+                    <div className="w-5 h-5 border-2 border-violet-400 border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                    <div>
+                      <p className="text-sm font-medium text-violet-700">Analysing market prices...</p>
+                      <p className="text-xs text-violet-400 mt-0.5">Comparing with NZ marketplace data</p>
+                    </div>
+                  </div>
+                )}
+                {aiAnalysis && !aiLoading && (
+                  <div className="bg-gradient-to-br from-violet-50 to-indigo-50 border border-violet-200 rounded-xl p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Sparkles size={14} className="text-violet-500" />
+                        <span className="text-xs font-semibold text-violet-600 uppercase tracking-wide">AI Market Analysis</span>
+                      </div>
+                      <span className={`text-xs font-bold px-2.5 py-1 rounded-full border ${verdictStyle(aiAnalysis.verdict)}`}>
+                        {aiAnalysis.verdict}
+                      </span>
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="bg-white/70 rounded-lg p-2.5">
+                        <p className="text-xs text-slate-500 mb-0.5">Listed Price</p>
+                        <p className="text-lg font-bold text-blue-600">${parseFloat(listing.price).toFixed(2)}</p>
+                      </div>
+                      <div className="bg-white/70 rounded-lg p-2.5">
+                        <p className="text-xs text-slate-500 mb-0.5">Market Range (NZD)</p>
+                        <p className="text-lg font-bold text-slate-700">${aiAnalysis.market_low}–${aiAnalysis.market_high}</p>
+                      </div>
+                    </div>
+                    {aiAnalysis.savings_percent > 0 && (
+                      <div className="bg-emerald-50 border border-emerald-200 rounded-lg px-3 py-2 flex items-center gap-2">
+                        <TrendingDown size={13} className="text-emerald-600 flex-shrink-0" />
+                        <span className="text-sm font-semibold text-emerald-700">~{aiAnalysis.savings_percent}% below typical market price</span>
+                      </div>
+                    )}
+                    <p className="text-sm text-slate-700">{aiAnalysis.key_insight}</p>
+                    <p className="text-xs text-slate-500">{aiAnalysis.condition_note}</p>
+                    <div className="pt-1 border-t border-violet-100">
+                      <p className="text-xs text-violet-600 font-medium">{aiAnalysis.buy_local_benefit}</p>
+                    </div>
+                    <div className="flex items-center justify-between">
+                      <p className="text-[10px] text-slate-400">Powered by Claude AI · NZ market estimates</p>
+                      <button
+                        onClick={() => { setAiAnalysis(null); setAiError(''); }}
+                        className="text-[10px] text-violet-400 hover:text-violet-600 transition-colors"
+                      >
+                        Re-analyse
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {aiError && !aiLoading && (
+                  <div className="flex items-center justify-between p-3 bg-red-50 border border-red-200 rounded-xl">
+                    <p className="text-red-600 text-sm">{aiError}</p>
+                    <button onClick={handleAiCompare} className="text-xs text-red-500 hover:text-red-700 font-medium ml-3 flex-shrink-0">Retry</button>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Description */}
             {listing.description && (

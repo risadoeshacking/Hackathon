@@ -112,12 +112,13 @@ def get_listing(listing_id):
                       u.id as seller_id, u.full_name as seller_name, u.avatar_url as seller_avatar,
                       u.email as seller_email,
                       (SELECT COUNT(*) FROM user_behavior WHERE listing_id = l.id AND behavior_type = 'like') as like_count,
-                      (SELECT behavior_type FROM user_behavior WHERE listing_id = l.id AND user_id = %s AND behavior_type = 'like' LIMIT 1) as user_liked
+                      (SELECT behavior_type FROM user_behavior WHERE listing_id = l.id AND user_id = %s AND behavior_type = 'like' LIMIT 1) as user_liked,
+                      (SELECT EXISTS(SELECT 1 FROM watchlist WHERE listing_id = l.id AND user_id = %s)) as user_watched
                FROM listings l
                LEFT JOIN categories c ON l.category_id = c.id
                JOIN users u ON l.seller_id = u.id
                WHERE l.id = %s AND l.school_id = %s""",
-            [g.user["id"], listing_id, g.user["school_id"]],
+            [g.user["id"], g.user["id"], listing_id, g.user["school_id"]],
         )
 
         if not row:

@@ -6,7 +6,7 @@ import * as ordersApi from '../api/orders';
 import ListingCard from '../components/ListingCard';
 import {
   CheckCircle, Clock, CheckCheck, Heart, Package,
-  ShoppingBag, Building2, Check, Plus,
+  ShoppingBag, Building2, Check, Plus, Bookmark,
 } from 'lucide-react';
 
 const TABS = [
@@ -14,6 +14,7 @@ const TABS = [
   { id: 'pending',   label: 'Pending',   Icon: Clock },
   { id: 'sold',      label: 'Sold',      Icon: CheckCheck },
   { id: 'liked',     label: 'Liked',     Icon: Heart },
+  { id: 'watchlist', label: 'Watchlist', Icon: Bookmark },
   { id: 'purchases', label: 'Purchases', Icon: Package },
 ];
 
@@ -39,6 +40,8 @@ export default function ProfilePage() {
     setLoading(true);
     if (tab === 'liked') {
       usersApi.getLikedListings().then(({ data }) => setListings(data.listings)).finally(() => setLoading(false));
+    } else if (tab === 'watchlist') {
+      usersApi.getWatchlist().then(({ data }) => setListings(data.listings)).finally(() => setLoading(false));
     } else if (tab === 'purchases') {
       ordersApi.getMyOrders('buyer').then(({ data }) => setOrders(data.orders)).finally(() => setLoading(false));
     } else {
@@ -222,8 +225,15 @@ export default function ProfilePage() {
             </div>
           ) : listings.length === 0 ? (
             <div className="text-center py-16 text-slate-400">
-              <ShoppingBag size={48} className="mx-auto mb-3 text-slate-200" />
-              <p className="font-medium text-slate-500">No {tab} listings</p>
+              {tab === 'watchlist'
+                ? <Bookmark size={48} className="mx-auto mb-3 text-slate-200" />
+                : <ShoppingBag size={48} className="mx-auto mb-3 text-slate-200" />}
+              <p className="font-medium text-slate-500">
+                {tab === 'watchlist' ? 'No saved items yet' : `No ${tab} listings`}
+              </p>
+              {tab === 'watchlist' && (
+                <p className="text-sm mt-1">Tap the bookmark icon on any listing to save it here</p>
+              )}
             </div>
           ) : (
             <div className="listing-grid">
