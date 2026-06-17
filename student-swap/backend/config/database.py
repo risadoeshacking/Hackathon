@@ -17,9 +17,13 @@ def init_pool():
             return
         _pool = psycopg2.pool.ThreadedConnectionPool(
             minconn=1,
-            maxconn=20,
+            maxconn=10,
             dsn=url,
             sslmode="require" if os.environ.get("FLASK_ENV") == "production" else "prefer",
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=5,
         )
         _init_error = None
         print("[DB] Connected to database successfully")
@@ -31,7 +35,17 @@ def init_pool():
 def get_conn():
     if _pool is None:
         raise ConnectionError(_init_error or "Database not initialized. Check DATABASE_URL in backend/.env")
-    return _pool.getconn()
+    conn = _pool.getconn()
+    try:
+        conn.cursor().execute("SELECT 1")
+    except Exception:
+        # Connection went stale (Neon auto-suspend). Close it and get a fresh one.
+        try:
+            _pool.putconn(conn, close=True)
+        except Exception:
+            pass
+        conn = _pool.getconn()
+    return conn
 
 
 def put_conn(conn):
