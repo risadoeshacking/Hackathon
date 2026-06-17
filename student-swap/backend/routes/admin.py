@@ -1,12 +1,17 @@
 import os
-import uuid
+import cloudinary
+import cloudinary.uploader
 from flask import Blueprint, request, jsonify, g
-from werkzeug.utils import secure_filename
 from config.database import DB
 from middleware.auth import require_auth, require_admin
 
 ALLOWED_LOGO_EXTENSIONS = {"png", "jpg", "jpeg", "gif", "svg", "webp"}
-UPLOAD_FOLDER = os.path.join(os.path.dirname(__file__), "..", os.environ.get("UPLOAD_FOLDER", "uploads"))
+
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME"),
+    api_key=os.environ.get("CLOUDINARY_API_KEY"),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET"),
+)
 
 
 def _allowed_logo(filename):
@@ -252,13 +257,15 @@ def upload_logo():
     if not file.filename or not _allowed_logo(file.filename):
         return jsonify(error="Invalid file type. Allowed: png, jpg, jpeg, gif, svg, webp"), 400
 
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
-    ext = file.filename.rsplit(".", 1)[1].lower()
-    filename = f"school_{g.user['school_id']}_logo_{uuid.uuid4().hex[:8]}.{ext}"
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
-    file.save(filepath)
+    result = cloudinary.uploader.upload(
+        file,
+        folder="student-swap",
+        public_id=f"school_{g.user['school_id']}_logo",
+        overwrite=True,
+        resource_type="image",
+    )
+    logo_url = result["secure_url"]
 
-    logo_url = f"/uploads/{filename}"
     with DB() as db:
         db.execute("UPDATE schools SET logo_url = %s, updated_at = NOW() WHERE id = %s",
                    [logo_url, g.user["school_id"]])
