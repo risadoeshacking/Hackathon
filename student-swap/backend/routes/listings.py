@@ -1,7 +1,8 @@
 import os
 import uuid
+import cloudinary
+import cloudinary.uploader
 from flask import Blueprint, request, jsonify, g, current_app
-from werkzeug.utils import secure_filename
 from config.database import DB
 from middleware.auth import require_auth
 
@@ -92,16 +93,18 @@ def upload_listing_image():
     file = request.files['image']
     if not file.filename:
         return jsonify(error="No file selected"), 400
-    ext = os.path.splitext(secure_filename(file.filename))[1].lower()
+    ext = os.path.splitext(file.filename)[1].lower()
     if ext not in {'.jpg', '.jpeg', '.png', '.webp', '.gif'}:
         return jsonify(error="File must be jpg, png, webp, or gif"), 400
-    filename = f"listing_{uuid.uuid4().hex}{ext}"
-    upload_dir = os.path.join(
-        current_app.root_path, current_app.config.get('UPLOAD_FOLDER', 'uploads'))
-    os.makedirs(upload_dir, exist_ok=True)
-    file.save(os.path.join(upload_dir, filename))
-    base_url = request.host_url.rstrip('/')
-    return jsonify(url=f"{base_url}/uploads/{filename}"), 201
+
+    # Upload to Cloudinary
+    result = cloudinary.uploader.upload(
+        file,
+        folder="student-swap/listings",
+        public_id=f"listing_{uuid.uuid4().hex}",
+        resource_type="image",
+    )
+    return jsonify(url=result["secure_url"]), 201
 
 
 @listings_bp.route("/<int:listing_id>", methods=["GET"])

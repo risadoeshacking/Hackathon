@@ -16,6 +16,12 @@ services:
         value: uploads
       - key: JWT_ACCESS_TOKEN_EXPIRES
         value: "604800"
+      - key: CLOUDINARY_CLOUD_NAME
+        sync: false
+      - key: CLOUDINARY_API_KEY
+        sync: false
+      - key: CLOUDINARY_API_SECRET
+        sync: false
 
   - type: web
     name: student-swap-frontend

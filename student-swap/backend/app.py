@@ -1,30 +1,40 @@
+from routes.admin import admin_bp
+from routes.users import users_bp
+from routes.recommendations import recommendations_bp
+from routes.orders import orders_bp
+from routes.listings import listings_bp
+from routes.auth import auth_bp
+from config.database import init_pool
+from flask_limiter.util import get_remote_address
+from flask_limiter import Limiter
+from flask_jwt_extended import JWTManager
+from flask_cors import CORS
+from flask import Flask, jsonify, send_from_directory
 import os
+import cloudinary
 from datetime import timedelta
 
 from dotenv import load_dotenv
 load_dotenv()
 
-from flask import Flask, jsonify, send_from_directory
-from flask_cors import CORS
-from flask_jwt_extended import JWTManager
-from flask_limiter import Limiter
-from flask_limiter.util import get_remote_address
-
-from config.database import init_pool
-from routes.auth import auth_bp
-from routes.listings import listings_bp
-from routes.orders import orders_bp
-from routes.recommendations import recommendations_bp
-from routes.users import users_bp
-from routes.admin import admin_bp
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
+# Cloudinary config
+cloudinary.config(
+    cloud_name=os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
+    api_key=os.environ.get("CLOUDINARY_API_KEY", ""),
+    api_secret=os.environ.get("CLOUDINARY_API_SECRET", ""),
+    secure=True,
+)
+
 # Config
 app.config["JWT_SECRET_KEY"] = os.environ["JWT_SECRET_KEY"]
-app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 604800)))
-app.config["MAX_CONTENT_LENGTH"] = int(os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))
+app.config["JWT_ACCESS_TOKEN_EXPIRES"] = timedelta(
+    seconds=int(os.environ.get("JWT_ACCESS_TOKEN_EXPIRES", 604800)))
+app.config["MAX_CONTENT_LENGTH"] = int(
+    os.environ.get("MAX_CONTENT_LENGTH", 5 * 1024 * 1024))
 # Always use our JSON error handlers, even in debug mode
 app.config["PROPAGATE_EXCEPTIONS"] = False
 
@@ -46,15 +56,21 @@ app.register_blueprint(admin_bp, url_prefix="/api/admin")
 init_pool()
 
 # Uploaded files
+
+
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
-    upload_folder = os.path.join(os.path.dirname(__file__), os.environ.get("UPLOAD_FOLDER", "uploads"))
+    upload_folder = os.path.join(os.path.dirname(
+        __file__), os.environ.get("UPLOAD_FOLDER", "uploads"))
     return send_from_directory(upload_folder, filename)
 
 # API endpoints
+
+
 @app.route("/api/health")
 def health():
     return jsonify(status="ok")
+
 
 @app.route("/api/public/school")
 def public_school():
@@ -69,8 +85,11 @@ def public_school():
         return jsonify(school=None)
     return jsonify(school=dict(school))
 
+
 # Serve the built React frontend for every non-API route
-FRONTEND_DIST = os.path.join(os.path.dirname(__file__), "..", "frontend", "dist")
+FRONTEND_DIST = os.path.join(os.path.dirname(
+    __file__), "..", "frontend", "dist")
+
 
 @app.route("/", defaults={"path": ""})
 @app.route("/<path:path>")
@@ -85,23 +104,29 @@ def serve_frontend(path):
     return jsonify(error="Frontend not built. Run: cd frontend && npm run build"), 503
 
 # Error handlers
+
+
 @app.errorhandler(ConnectionError)
 def db_unavailable(e):
     return jsonify(error=str(e)), 503
+
 
 @app.errorhandler(413)
 def too_large(e):
     return jsonify(error="File too large. Maximum size is 5MB"), 413
 
+
 @app.errorhandler(429)
 def rate_limited(e):
     return jsonify(error="Too many requests. Please wait a moment and try again"), 429
+
 
 @app.errorhandler(500)
 def server_error(e):
     import traceback
     print(traceback.format_exc())
     return jsonify(error="Internal server error"), 500
+
 
 @app.errorhandler(Exception)
 def unhandled(e):
