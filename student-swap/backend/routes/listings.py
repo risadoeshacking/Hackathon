@@ -1,4 +1,4 @@
-can import os
+import os
 import uuid
 from flask import Blueprint, request, jsonify, g, current_app
 from werkzeug.utils import secure_filename
