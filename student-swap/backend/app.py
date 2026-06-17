@@ -17,7 +17,6 @@ from routes.orders import orders_bp
 from routes.recommendations import recommendations_bp
 from routes.users import users_bp
 from routes.admin import admin_bp
-from routes.ai import ai_bp
 
 app = Flask(__name__)
 app.url_map.strict_slashes = False
@@ -43,7 +42,6 @@ app.register_blueprint(orders_bp, url_prefix="/api/orders")
 app.register_blueprint(recommendations_bp, url_prefix="/api/recommendations")
 app.register_blueprint(users_bp, url_prefix="/api/users")
 app.register_blueprint(admin_bp, url_prefix="/api/admin")
-app.register_blueprint(ai_bp, url_prefix="/api/ai")
 
 init_pool()
 
