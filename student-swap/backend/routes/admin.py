@@ -104,6 +104,25 @@ def remove_listing(listing_id):
     return jsonify(message="Listing removed")
 
 
+@admin_bp.route("/listings/<int:listing_id>", methods=["DELETE"])
+@require_auth
+@require_admin
+def delete_listing(listing_id):
+    with DB() as db:
+        row = db.fetchone(
+            "SELECT id FROM listings WHERE id = %s AND school_id = %s",
+            [listing_id, g.user["school_id"]],
+        )
+        if not row:
+            return jsonify(error="Listing not found"), 404
+        db.execute("DELETE FROM watchlist WHERE listing_id = %s", [listing_id])
+        db.execute("DELETE FROM user_behavior WHERE listing_id = %s", [listing_id])
+        db.execute("DELETE FROM moderation_reports WHERE listing_id = %s", [listing_id])
+        db.execute("DELETE FROM orders WHERE listing_id = %s", [listing_id])
+        db.execute("DELETE FROM listings WHERE id = %s", [listing_id])
+    return jsonify(message="Listing permanently deleted")
+
+
 @admin_bp.route("/reports", methods=["GET"])
 @require_auth
 @require_admin

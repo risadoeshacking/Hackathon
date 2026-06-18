@@ -377,6 +377,10 @@ export default function AdminPage() {
 
   const handleApprove    = async (id) => { await adminApi.approveListing(id); notify('Listing approved'); fetchData(); };
   const handleRemove     = async (id) => { await adminApi.removeListing(id);  notify('Listing removed');  fetchData(); };
+  const handleDelete     = async (id) => {
+    if (!confirm('Permanently delete this listing? This cannot be undone.')) return;
+    await adminApi.deleteListing(id); notify('Listing deleted'); fetchData();
+  };
   const handleReport     = async (id, status, remove_listing = false) => {
     await adminApi.reviewReport(id, { status, remove_listing, admin_notes: '' });
     notify('Report updated'); fetchData();
@@ -486,7 +490,7 @@ export default function AdminPage() {
                 ? <EmptyState icon={ClipboardList} text={`No ${statusFilter} listings`} />
                 : <div className="space-y-3">
                     {data.map((l) => (
-                      <div key={l.id} className="card p-4 flex gap-4">
+                        <div key={l.id} className="card p-4 flex gap-4" id={`listing-${l.id}`}>
                         <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 flex-shrink-0 flex items-center justify-center">
                           {l.images?.[0]
                             ? <img src={l.images[0]} alt="" className="w-full h-full object-cover" />
@@ -505,16 +509,22 @@ export default function AdminPage() {
                                 <span className="text-slate-400 font-normal">{l.condition} · {l.category_name}</span>
                               </p>
                             </div>
-                            {statusFilter === 'pending' && (
-                              <div className="flex gap-2 flex-shrink-0">
-                                <button onClick={() => handleApprove(l.id)} className="btn-success text-xs py-1.5 px-3">
-                                  <Check size={13} /> Approve
-                                </button>
-                                <button onClick={() => handleRemove(l.id)} className="btn-danger text-xs py-1.5 px-3">
-                                  <X size={13} /> Reject
-                                </button>
-                              </div>
-                            )}
+                            <div className="flex gap-2 flex-shrink-0">
+                              {statusFilter === 'pending' && (
+                                <>
+                                  <button onClick={() => handleApprove(l.id)} className="btn-success text-xs py-1.5 px-3">
+                                    <Check size={13} /> Approve
+                                  </button>
+                                  <button onClick={() => handleRemove(l.id)} className="btn-secondary text-xs py-1.5 px-3">
+                                    <X size={13} /> Reject
+                                  </button>
+                                </>
+                              )}
+                              <button onClick={() => handleDelete(l.id)}
+                                className="btn-ghost text-xs py-1.5 px-2.5 text-red-400 hover:text-red-600 hover:bg-red-50">
+                                <Trash2 size={13} /> Delete
+                              </button>
+                            </div>
                           </div>
                           <p className="text-xs text-slate-400 mt-1.5">{new Date(l.created_at).toLocaleString()}</p>
                         </div>
